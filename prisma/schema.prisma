@@ -1,0 +1,126 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  username      String    @unique
+  email         String    @unique
+  phone         String    @unique
+  passwordHash  String
+  role          Role      @default(PLAYER)
+  isActive      Boolean   @default(true)
+  isBanned      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  wallet        Wallet?
+  bets          Bet[]
+  transactions  Transaction[]
+
+  @@map("users")
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("wallets")
+}
+
+model GameRound {
+  id              String      @id @default(uuid())
+  roundNumber     Int         @unique @default(autoincrement())
+  serverSeed      String
+  serverSeedHash  String
+  clientSeed      String
+  nonce           Int
+  crashPoint      Float
+  status          RoundStatus @default(PENDING)
+  startedAt       DateTime?
+  endedAt         DateTime?
+  createdAt       DateTime    @default(now())
+
+  bets            Bet[]
+
+  @@map("game_rounds")
+}
+
+model Bet {
+  id           String     @id @default(uuid())
+  userId       String
+  roundId      String
+  betAmount    Float
+  cashoutAt    Float?
+  profit       Float?
+  status       BetStatus  @default(PENDING)
+  autoCashout  Float?
+  placedAt     DateTime   @default(now())
+  cashedOutAt  DateTime?
+
+  user         User       @relation(fields: [userId], references: [id])
+  round        GameRound  @relation(fields: [roundId], references: [id])
+
+  @@map("bets")
+}
+
+model Transaction {
+  id            String            @id @default(uuid())
+  userId        String
+  type          TransactionType
+  amount        Float
+  status        TransactionStatus @default(PENDING)
+  mpesaRef      String?
+  phone         String?
+  description   String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  user          User              @relation(fields: [userId], references: [id])
+
+  @@map("transactions")
+}
+
+enum Role {
+  PLAYER
+  ADMIN
+}
+
+enum RoundStatus {
+  PENDING
+  ACTIVE
+  CRASHED
+}
+
+enum BetStatus {
+  PENDING
+  ACTIVE
+  WON
+  LOST
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  BET
+  WIN
+  BONUS
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
